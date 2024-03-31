@@ -37,3 +37,5 @@ To set up and deploy the web poll application, follow these steps:
 | Image worker                     | 100%       | 3/3   | x     |
 | Docker compose                   | 100%       | 7/7   | x     |
 | End score                        | 100%       | 17/17 | x     |
+
+Beware of -42 Epitech students !!!
