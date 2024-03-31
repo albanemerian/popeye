@@ -1,0 +1,94 @@
+version : '3'
+
+services:
+
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - db-data:/var/lib/postgresql
+    environment:
+      - POSTGRES_DB=database
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    networks:
+      - result-tier
+      - back-tier
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d database -U user"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    restart: always
+    
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - poll-tier
+      - back-tier
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    restart: always
+    
+  worker:
+    build: worker/
+    environment:
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=database
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    networks:
+      - back-tier
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    restart: always
+  
+  poll:
+    build: poll/
+    ports:
+      - "5000:80"
+    environment:
+      - REDIS_HOST=redis
+    networks:
+      - poll-tier
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+  
+  result:
+    build: result/
+    ports:
+      - "5001:80"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=database
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    networks:
+      - result-tier
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    
+networks:
+  poll-tier:
+  result-tier:
+  back-tier:
+
+volumes:
+  db-data:
